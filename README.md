@@ -2,7 +2,7 @@
 
 A comprehensive macro tracking application for the UMass dining halls!! This app provides real-time nutritional information through web scraping.
 
-## Key Features
+## Features
 
 - **Real Nutrition Data** - Live scraping from UMass dining websites
 - **Meal Logging** - Track daily food intake with portion adjustments
