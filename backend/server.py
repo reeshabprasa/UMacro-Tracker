@@ -320,6 +320,9 @@ async def log_meal(meal_data: MealLogCreate, current_user: User = Depends(get_cu
     meal_dict = meal_log.dict()
     meal_dict['logged_at'] = meal_dict['logged_at'].isoformat()
     
+    # Ensure the ID is properly set
+    meal_dict['_id'] = meal_dict['id']
+    
     await db.meal_logs.insert_one(meal_dict)
     return meal_log
 
@@ -331,8 +334,25 @@ async def get_today_meals(current_user: User = Depends(get_current_user)):
     for meal in meals:
         if isinstance(meal.get('logged_at'), str):
             meal['logged_at'] = datetime.fromisoformat(meal['logged_at'])
+        # Ensure the ID is properly mapped from MongoDB _id
+        if '_id' in meal:
+            meal['id'] = str(meal['_id'])
     
     return [MealLog(**meal) for meal in meals]
+
+@api_router.delete("/meals/{meal_id}")
+async def delete_meal(meal_id: str, current_user: User = Depends(get_current_user)):
+    # Find the meal and verify ownership
+    meal = await db.meal_logs.find_one({"_id": meal_id, "user_id": current_user.id})
+    if not meal:
+        raise HTTPException(status_code=404, detail="Meal not found or access denied")
+    
+    # Delete the meal
+    result = await db.meal_logs.delete_one({"_id": meal_id, "user_id": current_user.id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Meal not found")
+    
+    return {"message": "Meal deleted successfully"}
 
 @api_router.get("/meals/history")
 async def get_meal_history(days: int = 14, current_user: User = Depends(get_current_user)):
