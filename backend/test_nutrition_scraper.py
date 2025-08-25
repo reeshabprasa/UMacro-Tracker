@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Test script for the UMass Nutrition Scraper
+Test script for the UMass Nutrition Scraper (the main dining halls) 
+Check test_blue_wall_scraper.py for Blue Wall menus
 """
 
 import sys

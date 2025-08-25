@@ -9,6 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 import os
 import logging
+import requests
 
 import uuid
 from pathlib import Path
@@ -190,6 +191,7 @@ async def search_food(q: str = "", location: str = ""):
             'hampshire': 'hampshire',
             'peoples organic coffee': 'peoples_organic_coffee',
             'harvest market': 'harvest_market',
+            'harvest': 'harvest',
             'tavola': 'tavola',
             'yum bakery': 'yum_bakery',
             'green fields': 'green_fields',

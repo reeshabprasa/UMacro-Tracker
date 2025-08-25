@@ -25,14 +25,14 @@ A comprehensive macro tracking application for the UMass dining halls!! This app
 - Harvest Market
 
 ### Blue Wall
-- Tavola
-- Yum! Bakery
-- Green Fields
-- Tamales
-- Wasabi
-- Deli Delish
-- Star Ginger
-- The Grill
+- **Green Fields**: Fresh salads, wraps, and healthy options
+- **Tamales (the goat)** : Authentic Mexican tamales and sides
+- **Wasabi**: Asian cuisine including sushi and hot entrees
+- **Deli Delish**: Sandwiches, deli meats, and fresh ingredients
+- **Star Ginger**: Asian fusion with rice bowls and stir-fries
+- **The Grill**: Burgers, sandwiches, and grilled favorites
+- **Harvest**: Fresh market items and grab-and-go options
+- **Tavola**: Italian cuisine and pasta dishes
 
 ## Technology Stack
 

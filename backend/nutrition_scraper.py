@@ -47,19 +47,16 @@ class UMassNutritionScraper:
             "hampshire": "https://umassdining.com/locations-menus/hampshire/menu"
         }
         
-        # Campus center eatery URL mappings (these may not have individual menu pages)
-        # Commenting out until we find the correct URLs
+        # Blue Wall and Campus Center eatery URL mappings
         self.campus_eateries = {
-            # "peoples_organic_coffee": "https://umassdining.com/locations-menus/peoples-organic-coffee/menu",
-            # "harvest_market": "https://umassdining.com/locations-menus/harvest-market/menu",
-            # "tavola": "https://umassdining.com/locations-menus/tavola/menu",
-            # "yum_bakery": "https://umassdining.com/locations-menus/yum-bakery/menu",
-            # "green_fields": "https://umassdining.com/locations-menus/green-fields/menu",
-            # "tamales": "https://umassdining.com/locations-menus/tamales/menu",
-            # "wasabi": "https://umassdining.com/locations-menus/wasabi/menu",
-            # "deli_delish": "https://umassdining.com/locations-menus/deli-delish/menu",
-            # "star_ginger": "https://umassdining.com/locations-menus/star-ginger/menu",
-            # "grill": "https://umassdining.com/locations-menus/grill/menu"
+            "green_fields": "https://umassdining.com/menu/green-fields-blue-wall",
+            "tamales": "https://umassdining.com/menu/tamales-blue-wall-menu",
+            "wasabi": "https://umassdining.com/menu/wasabi-blue-wall",
+            "deli_delish": "https://umassdining.com/menu/deli-delish-blue-wall",
+            "star_ginger": "https://umassdining.com/menu/star-ginger-blue-wall-menu",
+            "grill": "https://umassdining.com/menu/grill-blue-wall-menu",
+            "harvest": "https://umassdining.com/menu/harvest-blue-wall-menu",
+            "tavola": "https://umassdining.com/menu/tavola"
         }
         
         # All available locations
