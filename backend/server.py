@@ -10,6 +10,7 @@ from typing import List, Optional
 import os
 import logging
 import requests
+from bson import ObjectId
 
 import uuid
 from pathlib import Path
@@ -71,6 +72,19 @@ class FoodItem(BaseModel):
     protein: float = 0.0
     carbs: float = 0.0
     fat: float = 0.0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class FavoriteFood(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    name: str
+    dining_location: str
+    meal_type: str
+    calories: int = 0
+    protein: float = 0.0
+    carbs: float = 0.0
+    fat: float = 0.0
+    is_custom: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class MealLog(BaseModel):
@@ -355,6 +369,106 @@ async def delete_meal(meal_id: str, current_user: User = Depends(get_current_use
         raise HTTPException(status_code=404, detail="Meal not found")
     
     return {"message": "Meal deleted successfully"}
+
+# Favorites endpoints
+@api_router.post("/favorites/add")
+async def add_favorite(food_data: dict, current_user: User = Depends(get_current_user)):
+    """Add a food item to user's favorites"""
+    try:
+        # Check if favorite already exists
+        existing_favorite = await db.favorites.find_one({
+            "user_id": current_user.id,
+            "name": food_data.get('name'),
+            "dining_location": food_data.get('dining_location')
+        })
+        
+        if existing_favorite:
+            raise HTTPException(status_code=400, detail="Food item already in favorites")
+        
+        favorite = FavoriteFood(
+            user_id=current_user.id,
+            name=food_data.get('name'),
+            dining_location=food_data.get('dining_location'),
+            meal_type=food_data.get('meal_type', 'Lunch'),
+            calories=food_data.get('calories', 0),
+            protein=food_data.get('protein', 0.0),
+            carbs=food_data.get('carbs', 0.0),
+            fat=food_data.get('fat', 0.0),
+            is_custom=food_data.get('is_custom', False)
+        )
+        
+        favorite_dict = favorite.dict()
+        favorite_dict['_id'] = ObjectId()  # Generate new ObjectId
+        favorite_dict['created_at'] = favorite_dict['created_at'].isoformat()
+        
+        await db.favorites.insert_one(favorite_dict)
+        return {"message": "Food added to favorites", "favorite": favorite}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error adding favorite: {e}")
+        raise HTTPException(status_code=500, detail=f"Error adding favorite: {str(e)}")
+
+@api_router.get("/favorites")
+async def get_favorites(current_user: User = Depends(get_current_user)):
+    """Get all user's favorite foods"""
+    try:
+        favorites = await db.favorites.find({"user_id": current_user.id}).to_list(length=None)
+        
+        # Convert MongoDB _id to id and handle datetime
+        for favorite in favorites:
+            if '_id' in favorite:
+                favorite['id'] = str(favorite['_id'])
+                del favorite['_id']  # Remove the MongoDB _id field
+            if isinstance(favorite.get('created_at'), str):
+                favorite['created_at'] = datetime.fromisoformat(favorite['created_at'])
+        
+        return [FavoriteFood(**favorite) for favorite in favorites]
+        
+    except Exception as e:
+        logger.error(f"Error fetching favorites: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching favorites: {str(e)}")
+
+@api_router.delete("/favorites/{favorite_id}")
+async def remove_favorite(favorite_id: str, current_user: User = Depends(get_current_user)):
+    """Remove a food item from user's favorites"""
+    try:
+        # Validate ObjectId format
+        if not ObjectId.is_valid(favorite_id):
+            raise HTTPException(status_code=400, detail="Invalid favorite ID format")
+        
+        # Find the favorite and verify ownership
+        favorite = await db.favorites.find_one({"_id": ObjectId(favorite_id), "user_id": current_user.id})
+        if not favorite:
+            raise HTTPException(status_code=404, detail="Favorite not found or access denied")
+        
+        # Delete the favorite
+        result = await db.favorites.delete_one({"_id": ObjectId(favorite_id), "user_id": current_user.id})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Favorite not found")
+        
+        return {"message": "Favorite removed successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error removing favorite: {e}")
+        raise HTTPException(status_code=500, detail=f"Error removing favorite: {str(e)}")
+
+@api_router.get("/favorites/check/{food_name}")
+async def check_favorite(food_name: str, current_user: User = Depends(get_current_user)):
+    """Check if a food item is in user's favorites"""
+    try:
+        favorite = await db.favorites.find_one({
+            "user_id": current_user.id,
+            "name": food_name
+        })
+        return {"is_favorite": favorite is not None}
+        
+    except Exception as e:
+        logger.error(f"Error checking favorite: {e}")
+        return {"is_favorite": False}
 
 @api_router.get("/meals/history")
 async def get_meal_history(days: int = 14, current_user: User = Depends(get_current_user)):

@@ -15,7 +15,7 @@ import { toast, Toaster } from 'sonner';
 import Typewriter from 'typewriter-effect';
 
 // Icons
-import { Search, Plus, Calendar as CalendarIcon, TrendingUp, Utensils, User, LogOut, Trash2 } from 'lucide-react';
+import { Search, Plus, Calendar as CalendarIcon, TrendingUp, Utensils, User, LogOut, Trash2, Heart } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -162,7 +162,7 @@ function AuthPage() {
         <CardHeader className="space-y-1 text-center">
           <CardTitle className="text-3xl font-bold text-umass-maroon">UMacro Tracker</CardTitle>
           <CardDescription className="text-gray-600">
-            Track your UMass dining macros with ease @{' '}
+            Track your UMass dining macros @{' '}
             <Typewriter
               options={{
                 strings: ['Worcester', 'Berkshire', 'Franklin', 'Hampshire', 'Blue Wall'],
@@ -239,7 +239,7 @@ function AuthPage() {
 }
 
 // Food Search Component
-function FoodSearch({ onFoodSelect }) {
+function FoodSearch({ onFoodSelect, onToggleFavorite, isFavorite }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -329,18 +329,33 @@ function FoodSearch({ onFoodSelect }) {
 
       <div className="grid gap-2 max-h-96 overflow-y-auto">
         {searchResults.map((food, index) => (
-          <Card key={index} className="p-3 hover:shadow-md transition-shadow cursor-pointer" onClick={() => onFoodSelect(food)}>
+          <Card key={index} className="p-3 hover:shadow-md transition-shadow">
             <div className="flex justify-between items-start">
-              <div className="flex-1">
+              <div className="flex-1 cursor-pointer" onClick={() => onFoodSelect(food)}>
                 <h4 className="font-semibold text-gray-900">{food.name}</h4>
                 <p className="text-sm text-gray-600">{food.dining_location}</p>
                 <Badge variant="secondary" className="text-xs mt-1">{food.meal_type}</Badge>
               </div>
-              <div className="text-right text-sm">
-                <div className="font-semibold text-umass-maroon">{food.calories} cal</div>
-                <div className="text-gray-600">P: {food.protein}g</div>
-                <div className="text-gray-600">C: {food.carbs}g</div>
-                <div className="text-gray-600">F: {food.fat}g</div>
+              <div className="flex items-center space-x-2">
+                <div className="text-right text-sm">
+                  <div className="font-semibold text-umass-maroon">{food.calories} cal</div>
+                  <div className="text-gray-600">P: {food.protein}g</div>
+                  <div className="text-gray-600">C: {food.carbs}g</div>
+                  <div className="text-gray-600">F: {food.fat}g</div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleFavorite(food);
+                  }}
+                  className="ml-2 p-1 h-8 w-8"
+                >
+                  <Heart 
+                    className={`h-4 w-4 ${isFavorite(food.name, food.dining_location) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} 
+                  />
+                </Button>
               </div>
             </div>
           </Card>
@@ -357,11 +372,10 @@ function FoodSearch({ onFoodSelect }) {
 }
 
 // Meal Logger Component
-function MealLogger() {
+function MealLogger({ toggleFavorite, isFavorite }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedFood, setSelectedFood] = useState(null);
   const [portion, setPortion] = useState(1);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [mealType, setMealType] = useState('Lunch');
   const [logging, setLogging] = useState(false);
 
@@ -375,7 +389,7 @@ function MealLogger() {
 
     setLogging(true);
     try {
-      const dateStr = selectedDate.toISOString().split('T')[0];
+      const dateStr = new Date().toISOString().split('T')[0];
       await axios.post(`${API}/meals/log`, {
         food_name: selectedFood.name,
         dining_location: selectedFood.dining_location,
@@ -429,7 +443,11 @@ function MealLogger() {
         </DialogHeader>
 
         {!selectedFood ? (
-          <FoodSearch onFoodSelect={handleFoodSelect} />
+          <FoodSearch 
+            onFoodSelect={handleFoodSelect} 
+            onToggleFavorite={toggleFavorite}
+            isFavorite={isFavorite}
+          />
         ) : (
           <div className="space-y-6">
             <Card className="p-4 bg-gray-50">
@@ -463,15 +481,6 @@ function MealLogger() {
                   <option value="Snack">Snack</option>
                 </select>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Date</label>
-              <Calendar
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-md border"
-              />
             </div>
 
             <Card className="p-4 bg-umass-maroon/5 border-umass-maroon/20">
@@ -511,8 +520,153 @@ function MealLogger() {
   );
 }
 
+// Favorites Tab Component
+function FavoritesTab({ toggleFavorite, isFavorite }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [favorites, setFavorites] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchFavorites();
+    }
+  }, [isOpen]);
+
+  const fetchFavorites = async () => {
+    try {
+      const response = await axios.get(`${API}/favorites`);
+      setFavorites(response.data);
+    } catch (error) {
+      console.error('Failed to fetch favorites:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeFromFavorites = async (favoriteId) => {
+    try {
+      await axios.delete(`${API}/favorites/${favoriteId}`);
+      toast.success('Removed from favorites');
+      fetchFavorites();
+      // Trigger favorites refresh in parent component
+      window.dispatchEvent(new CustomEvent('favoritesUpdated'));
+    } catch (error) {
+      toast.error('Failed to remove from favorites');
+      console.error('Remove from favorites error:', error);
+    }
+  };
+
+  const logFavorite = async (favorite) => {
+    try {
+      const dateStr = new Date().toLocaleDateString('en-CA');
+      await axios.post(`${API}/meals/log`, {
+        food_name: favorite.name,
+        dining_location: favorite.dining_location,
+        meal_type: favorite.meal_type,
+        portion_size: 1,
+        calories: favorite.calories,
+        protein: favorite.protein,
+        carbs: favorite.carbs,
+        fat: favorite.fat,
+        date: dateStr
+      });
+
+      toast.success('Favorite meal logged successfully!');
+      setIsOpen(false);
+      // Trigger refresh of dashboard
+      window.dispatchEvent(new CustomEvent('mealLogged'));
+    } catch (error) {
+      toast.error('Failed to log favorite meal');
+      console.error('Log favorite meal error:', error);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button className="bg-umass-maroon hover:bg-red-800 text-white">
+          <Heart className="h-4 w-4 mr-2" />
+          Favorites
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto !bg-white border border-gray-200 shadow-xl">
+        <DialogHeader>
+          <DialogTitle>Favorite Foods</DialogTitle>
+          <DialogDescription>
+            Your saved favorite foods for quick meal logging.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-umass-maroon mx-auto"></div>
+            </div>
+          ) : favorites.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              <Heart className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+              <p>No favorite foods yet.</p>
+              <p className="text-sm">Add foods to favorites from search results or meal history!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {favorites.map((favorite) => (
+                <Card key={favorite.id} className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-lg">{favorite.name}</h4>
+                      <p className="text-sm text-gray-600">{favorite.dining_location} • {favorite.meal_type}</p>
+                      <div className="grid grid-cols-4 gap-4 mt-3 text-center">
+                        <div>
+                          <div className="text-lg font-semibold text-umass-maroon">{favorite.calories}</div>
+                          <div className="text-xs text-gray-600">Cal</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-green-600">{favorite.protein}g</div>
+                          <div className="text-xs text-gray-600">Protein</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-blue-600">{favorite.carbs}g</div>
+                          <div className="text-xs text-gray-600">Carbs</div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-yellow-600">{favorite.fat}g</div>
+                          <div className="text-xs text-gray-600">Fat</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex space-x-2 ml-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => logFavorite(favorite)}
+                        className="text-umass-maroon hover:text-umass-maroon hover:bg-umass-maroon/10"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Log
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeFromFavorites(favorite.id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Custom Food Logger Component
-function CustomFoodLogger() {
+function CustomFoodLogger({ toggleFavorite, isFavorite }) {
   const [isOpen, setIsOpen] = useState(false);
   const [customFood, setCustomFood] = useState({
     name: '',
@@ -525,6 +679,7 @@ function CustomFoodLogger() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [mealType, setMealType] = useState('Lunch');
   const [logging, setLogging] = useState(false);
+  const [saveAsFavorite, setSaveAsFavorite] = useState(false);
 
   const handleInputChange = (field, value) => {
     setCustomFood(prev => ({
@@ -555,9 +710,37 @@ function CustomFoodLogger() {
       });
 
       toast.success('Custom meal logged successfully!');
+      
+      // Save as favorite if checkbox is checked
+      if (saveAsFavorite) {
+        try {
+          const response = await axios.post(`${API}/favorites/add`, {
+            name: customFood.name,
+            dining_location: 'Custom Food',
+            meal_type: mealType,
+            calories: parseInt(customFood.calories),
+            protein: parseFloat(customFood.protein),
+            carbs: parseFloat(customFood.carbs),
+            fat: parseFloat(customFood.fat),
+            is_custom: true
+          });
+          toast.success('Also saved to favorites!');
+          // Trigger favorites refresh in parent component
+          window.dispatchEvent(new CustomEvent('favoritesUpdated'));
+        } catch (error) {
+          if (error.response?.status === 400 && error.response?.data?.detail === "Food item already in favorites") {
+            toast.info('This custom food is already in your favorites');
+          } else {
+            console.error('Failed to save as favorite:', error);
+            toast.error('Failed to save as favorite');
+          }
+        }
+      }
+      
       setIsOpen(false);
       setCustomFood({ name: '', calories: '', protein: '', carbs: '', fat: '' });
       setPortion(1);
+      setSaveAsFavorite(false);
       // Trigger refresh of dashboard
       window.dispatchEvent(new CustomEvent('mealLogged'));
     } catch (error) {
@@ -584,6 +767,7 @@ function CustomFoodLogger() {
     setCustomFood({ name: '', calories: '', protein: '', carbs: '', fat: '' });
     setPortion(1);
     setMealType('Lunch');
+    setSaveAsFavorite(false);
   };
 
   return (
@@ -714,6 +898,19 @@ function CustomFoodLogger() {
             </div>
           </Card>
 
+          <div className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="saveAsFavorite"
+              checked={saveAsFavorite}
+              onChange={(e) => setSaveAsFavorite(e.target.checked)}
+              className="rounded border-gray-300 text-umass-maroon focus:ring-umass-maroon"
+            />
+            <label htmlFor="saveAsFavorite" className="text-sm text-gray-700">
+              Save as favorite for quick access
+            </label>
+          </div>
+
           <div className="flex space-x-2">
             <Button variant="outline" onClick={resetForm} className="flex-1">
               Reset
@@ -735,6 +932,7 @@ function Dashboard() {
   const [macros, setMacros] = useState({ total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, meal_count: 0 });
   const [todayMeals, setTodayMeals] = useState([]);
   const [history, setHistory] = useState({});
+  const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [macroGoals, setMacroGoals] = useState(() => {
     const saved = localStorage.getItem('macroGoals');
@@ -745,6 +943,7 @@ function Dashboard() {
   useEffect(() => {
     fetchDashboardData();
     fetchHistory();
+    fetchFavorites();
 
     // Listen for meal logged events
     const handleMealLogged = () => {
@@ -752,7 +951,17 @@ function Dashboard() {
       fetchHistory();
     };
     window.addEventListener('mealLogged', handleMealLogged);
-    return () => window.removeEventListener('mealLogged', handleMealLogged);
+    
+    // Listen for favorites updated events
+    const handleFavoritesUpdated = () => {
+      fetchFavorites();
+    };
+    window.addEventListener('favoritesUpdated', handleFavoritesUpdated);
+    
+    return () => {
+      window.removeEventListener('mealLogged', handleMealLogged);
+      window.removeEventListener('favoritesUpdated', handleFavoritesUpdated);
+    };
   }, [currentDate]);
 
   const fetchDashboardData = async () => {
@@ -782,6 +991,79 @@ function Dashboard() {
     } catch (error) {
       console.error('Failed to fetch history:', error);
     }
+  };
+
+  const fetchFavorites = async () => {
+    try {
+      const response = await axios.get(`${API}/favorites`);
+      setFavorites(response.data);
+    } catch (error) {
+      console.error('Failed to fetch favorites:', error);
+      // Don't show error toast for favorites fetch failure as it's not critical
+      // Just log it for debugging
+    }
+  };
+
+  const toggleFavorite = async (food) => {
+    try {
+      if (isFavorite(food.name, food.dining_location)) {
+        // Remove from favorites
+        const favorite = favorites.find(fav => fav.name === food.name && fav.dining_location === food.dining_location);
+        if (favorite) {
+          await axios.delete(`${API}/favorites/${favorite.id}`);
+          toast.success('Removed from favorites');
+          // Update local state immediately for better UX
+          setFavorites(prev => prev.filter(fav => fav.id !== favorite.id));
+        }
+      } else {
+        // Add to favorites
+        const response = await axios.post(`${API}/favorites/add`, {
+          name: food.name,
+          dining_location: food.dining_location,
+          meal_type: food.meal_type || 'Lunch',
+          calories: food.calories || 0,
+          protein: food.protein || 0.0,
+          carbs: food.carbs || 0.0,
+          fat: food.fat || 0.0,
+          is_custom: false
+        });
+        toast.success('Added to favorites!');
+        // Update local state immediately for better UX
+        if (response.data.favorite) {
+          setFavorites(prev => [...prev, response.data.favorite]);
+        }
+      }
+      // Only fetch favorites if we didn't update local state
+      if (!isFavorite(food.name, food.dining_location)) {
+        fetchFavorites();
+      }
+    } catch (error) {
+      if (error.response?.status === 400 && error.response?.data?.detail === "Food item already in favorites") {
+        toast.error('This food item is already in your favorites');
+      } else {
+        toast.error('Failed to update favorites');
+        console.error('Toggle favorite error:', error);
+      }
+    }
+  };
+
+  const removeFromFavorites = async (favoriteId) => {
+    try {
+      await axios.delete(`${API}/favorites/${favoriteId}`);
+      toast.success('Removed from favorites');
+      // Update local state immediately for better UX
+      setFavorites(prev => prev.filter(fav => fav.id !== favoriteId));
+    } catch (error) {
+      toast.error('Failed to remove from favorites');
+      console.error('Remove from favorites error:', error);
+    }
+  };
+
+  const isFavorite = (foodName, diningLocation = null) => {
+    if (diningLocation) {
+      return favorites.some(fav => fav.name === foodName && fav.dining_location === diningLocation);
+    }
+    return favorites.some(fav => fav.name === foodName);
   };
 
   const navigateDate = (days) => {
@@ -978,8 +1260,9 @@ function Dashboard() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Today's Meals ({macros.meal_count})</CardTitle>
                 <div className="flex space-x-2">
-                  <CustomFoodLogger />
-                  <MealLogger />
+                  <FavoritesTab toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
+                  <CustomFoodLogger toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
+                  <MealLogger toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
                 </div>
               </CardHeader>
               <CardContent>
@@ -1008,14 +1291,37 @@ function Dashboard() {
                             F: {Math.round(meal.fat * meal.portion_size * 10) / 10}g
                           </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deleteMeal(meal.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const foodData = {
+                                name: meal.food_name,
+                                dining_location: meal.dining_location,
+                                meal_type: meal.meal_type,
+                                calories: meal.calories,
+                                protein: meal.protein,
+                                carbs: meal.carbs,
+                                fat: meal.fat
+                              };
+                              toggleFavorite(foodData);
+                            }}
+                            className="p-1 h-8 w-8"
+                          >
+                            <Heart 
+                              className={`h-4 w-4 ${isFavorite(meal.food_name, meal.dining_location) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} 
+                            />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteMeal(meal.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

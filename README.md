@@ -13,7 +13,7 @@ A comprehensive macro tracking application for the UMass dining halls!! This app
 ## Supported Locations
 
 - **Main Dining Commons**: Berkshire, Franklin, Worcester, Hampshire
-- **Campus Center**: Harvest Market, People's Organic, Blue Wall (babyBerk soon (trust))
+- **Campus Center**: Harvest Market, People's Organic, Blue Wall (babyBerk soon)
 
 ## Tech Stack
 
