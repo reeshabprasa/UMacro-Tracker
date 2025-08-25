@@ -541,7 +541,7 @@ function CustomFoodLogger() {
 
     setLogging(true);
     try {
-      const dateStr = selectedDate.toISOString().split('T')[0];
+      const dateStr = new Date().toISOString().split('T')[0];
       await axios.post(`${API}/meals/log`, {
         food_name: customFood.name,
         dining_location: 'Custom Food',
@@ -583,7 +583,6 @@ function CustomFoodLogger() {
   const resetForm = () => {
     setCustomFood({ name: '', calories: '', protein: '', carbs: '', fat: '' });
     setPortion(1);
-    setSelectedDate(new Date());
     setMealType('Lunch');
   };
 
@@ -679,29 +678,19 @@ function CustomFoodLogger() {
               </div>
             </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Meal Type</label>
-              <select
-                value={mealType}
-                onChange={(e) => setMealType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-umass-maroon"
-              >
-                <option value="Breakfast">Breakfast</option>
-                <option value="Lunch">Lunch</option>
-                <option value="Dinner">Dinner</option>
-                <option value="Snack">Snack</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Date</label>
-              <Calendar
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                className="rounded-md border"
-              />
-            </div>
-          </div>
+                      <div className="space-y-2">
+                <label className="text-sm font-medium">Meal Type</label>
+                <select
+                  value={mealType}
+                  onChange={(e) => setMealType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-umass-maroon"
+                >
+                  <option value="Breakfast">Breakfast</option>
+                  <option value="Lunch">Lunch</option>
+                  <option value="Dinner">Dinner</option>
+                  <option value="Snack">Snack</option>
+                </select>
+              </div>
 
           <Card className="p-4 bg-umass-maroon/5 border-umass-maroon/20">
             <h4 className="font-semibold mb-2">Adjusted Nutrition</h4>
@@ -999,7 +988,9 @@ function Dashboard() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {todayMeals.map((meal, index) => (
+                    {todayMeals
+                      .sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at))
+                      .map((meal, index) => (
                       <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                         <div className="flex-1">
                           <h4 className="font-medium">{meal.food_name}</h4>
