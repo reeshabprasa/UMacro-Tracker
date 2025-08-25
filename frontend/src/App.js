@@ -757,10 +757,10 @@ function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = currentDate.toLocaleDateString('en-CA'); // Returns YYYY-MM-DD format in local timezone
       const [macrosResponse, mealsResponse] = await Promise.all([
         axios.get(`${API}/dashboard/macros/${dateStr}`),
-        currentDate.toDateString() === new Date().toDateString() ? axios.get(`${API}/meals/today`) : Promise.resolve({ data: [] })
+        currentDate.toLocaleDateString('en-CA') === new Date().toLocaleDateString('en-CA') ? axios.get(`${API}/meals/today`) : Promise.resolve({ data: [] })
       ]);
       
       setMacros(macrosResponse.data);
@@ -775,6 +775,9 @@ function Dashboard() {
   const fetchHistory = async () => {
     try {
       const response = await axios.get(`${API}/meals/history?days=14`);
+      console.log('History data received:', response.data);
+      console.log('Today\'s date:', new Date().toLocaleDateString('en-CA'));
+      console.log('History dates:', Object.keys(response.data));
       setHistory(response.data);
     } catch (error) {
       console.error('Failed to fetch history:', error);
@@ -792,8 +795,8 @@ function Dashboard() {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    if (date.toDateString() === today.toDateString()) return 'Today';
-    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    if (date.toLocaleDateString('en-CA') === today.toLocaleDateString('en-CA')) return 'Today';
+    if (date.toLocaleDateString('en-CA') === yesterday.toLocaleDateString('en-CA')) return 'Yesterday';
     return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
   };
 
@@ -1032,22 +1035,28 @@ function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {Object.entries(history).reverse().map(([date, data]) => (
-                    <div key={date} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
-                      <div>
-                        <div className="font-medium text-sm">
-                          {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {Object.entries(history).reverse().map(([date, data]) => {
+                    // Changes to also include the current day in the 14-day history
+                    const displayDate = new Date(date);
+                    displayDate.setDate(displayDate.getDate() + 1);
+                    
+                    return (
+                      <div key={date} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
+                        <div>
+                          <div className="font-medium text-sm">
+                            {displayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
+                          <div className="text-xs text-gray-500">{data.meal_count} meals</div>
                         </div>
-                        <div className="text-xs text-gray-500">{data.meal_count} meals</div>
-                      </div>
-                      <div className="text-right text-sm">
-                        <div className="font-semibold text-umass-maroon">{data.total_calories} cal</div>
-                        <div className="text-xs text-gray-600">
-                          {data.total_protein}p • {data.total_carbs}c • {data.total_fat}f
+                        <div className="text-right text-sm">
+                          <div className="font-semibold text-umass-maroon">{data.total_calories} cal</div>
+                          <div className="text-xs text-gray-600">
+                            {data.total_protein}p • {data.total_carbs}c • {data.total_fat}f
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

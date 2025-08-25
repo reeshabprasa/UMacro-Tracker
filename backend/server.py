@@ -330,7 +330,7 @@ async def log_meal(meal_data: MealLogCreate, current_user: User = Depends(get_cu
 
 @api_router.get("/meals/today", response_model=List[MealLog])
 async def get_today_meals(current_user: User = Depends(get_current_user)):
-    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    today = datetime.now().strftime('%Y-%m-%d')
     meals = await db.meal_logs.find({"user_id": current_user.id, "date": today}).to_list(length=None)
     
     for meal in meals:
@@ -358,8 +358,11 @@ async def delete_meal(meal_id: str, current_user: User = Depends(get_current_use
 
 @api_router.get("/meals/history")
 async def get_meal_history(days: int = 14, current_user: User = Depends(get_current_user)):
-    end_date = datetime.now(timezone.utc)
-    start_date = end_date - timedelta(days=days)
+    # Get current date in local timezone to match frontend
+    end_date = datetime.now()
+    # Calculate start date to include exactly 'days' number of days including today
+    # We want days-1 because we're including today as one of the days
+    start_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=days-1)
     
     date_range = []
     current = start_date
@@ -367,6 +370,10 @@ async def get_meal_history(days: int = 14, current_user: User = Depends(get_curr
         date_range.append(current.strftime('%Y-%m-%d'))
         current += timedelta(days=1)
     
+    # Ensure we have exactly the right number of dates
+    if len(date_range) != days:
+        logger.warning(f"Expected {days} dates but got {len(date_range)} dates")
+        logger.warning(f"Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
     meals = await db.meal_logs.find({
         "user_id": current_user.id,
         "date": {"$in": date_range}
@@ -389,6 +396,19 @@ async def get_meal_history(days: int = 14, current_user: User = Depends(get_curr
             total_fat=round(total_fat, 1),
             meal_count=len(daily_meals)
         )
+    
+    # Log the date range for debugging
+    logger.info(f"History date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
+    logger.info(f"Generated dates: {date_range}")
+    logger.info(f"Total meals found: {len(meals)}")
+    
+    # Log today's date and check if it's in the range
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    logger.info(f"Today's date: {today_str}")
+    logger.info(f"Today in date range: {today_str in date_range}")
+    
+    # Log the final daily_macros keys to see what dates we're returning
+    logger.info(f"Daily macros dates: {list(daily_macros.keys())}")
     
     return daily_macros
 
