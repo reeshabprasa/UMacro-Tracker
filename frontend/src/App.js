@@ -316,7 +316,7 @@ function FoodSearch({ onFoodSelect, onToggleFavorite, isFavorite }) {
             <option key={index} value={location.name}>{location.name}</option>
           ))}
         </select>
-        <Button onClick={handleSearch} disabled={loading} className="bg-umass-maroon hover:bg-red-800">
+        <Button onClick={handleSearch} disabled={loading} className="bg-umass-maroon hover:bg-red-800 text-white">
           {loading ? '...' : <Search className="w-4 h-4" />}
         </Button>
       </div>
@@ -509,7 +509,7 @@ function MealLogger({ toggleFavorite, isFavorite }) {
               <Button variant="outline" onClick={() => setSelectedFood(null)} className="flex-1">
                 Back to Search
               </Button>
-              <Button onClick={handleLogMeal} disabled={logging} className="flex-1 bg-umass-maroon hover:bg-red-800">
+              <Button onClick={handleLogMeal} disabled={logging} className="flex-1 bg-umass-maroon hover:bg-red-800 text-white">
                 {logging ? 'Logging...' : 'Log Meal'}
               </Button>
             </div>
@@ -915,7 +915,7 @@ function CustomFoodLogger({ toggleFavorite, isFavorite }) {
             <Button variant="outline" onClick={resetForm} className="flex-1">
               Reset
             </Button>
-            <Button onClick={handleLogCustomMeal} disabled={logging} className="flex-1 bg-umass-maroon hover:bg-red-800">
+            <Button onClick={handleLogCustomMeal} disabled={logging} className="flex-1 bg-umass-maroon hover:bg-red-800 text-white">
               {logging ? 'Logging...' : 'Log Custom Meal'}
             </Button>
           </div>
@@ -1454,7 +1454,7 @@ function MacroGoalsForm({ currentGoals, onSave, onCancel }) {
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
           Cancel
         </Button>
-        <Button type="submit" className="flex-1 bg-umass-maroon hover:bg-red-800">
+        <Button type="submit" className="flex-1 bg-umass-maroon hover:bg-red-800 text-white">
           Save Goals
         </Button>
       </div>
