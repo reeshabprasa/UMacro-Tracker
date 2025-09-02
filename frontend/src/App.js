@@ -298,27 +298,29 @@ function FoodSearch({ onFoodSelect, onToggleFavorite, isFavorite }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex space-x-2">
+      <div className="space-y-3">
         <Input
           placeholder="Search for food items..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onKeyPress={handleKeyPress}
-          className="flex-1"
+          className="w-full"
         />
-        <select
-          value={selectedLocation}
-          onChange={(e) => setSelectedLocation(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-umass-maroon"
-        >
-          <option value="">All Locations</option>
-          {locations.map((location, index) => (
-            <option key={index} value={location.name}>{location.name}</option>
-          ))}
-        </select>
-        <Button onClick={handleSearch} disabled={loading} className="bg-umass-maroon hover:bg-red-800 text-white">
-          {loading ? '...' : <Search className="w-4 h-4" />}
-        </Button>
+        <div className="flex space-x-2">
+          <select
+            value={selectedLocation}
+            onChange={(e) => setSelectedLocation(e.target.value)}
+            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-umass-maroon"
+          >
+            <option value="">All Locations</option>
+            {locations.map((location, index) => (
+              <option key={index} value={location.name}>{location.name}</option>
+            ))}
+          </select>
+          <Button onClick={handleSearch} disabled={loading} className="bg-umass-maroon hover:bg-red-800 text-white">
+            {loading ? '...' : <Search className="w-4 h-4" />}
+          </Button>
+        </div>
       </div>
 
       {loading && (
@@ -520,6 +522,224 @@ function MealLogger({ toggleFavorite, isFavorite }) {
   );
 }
 
+// Consolidated Meal Logger Component
+function ConsolidatedMealLogger({ toggleFavorite, isFavorite }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedFood, setSelectedFood] = useState(null);
+  const [portion, setPortion] = useState(1);
+  const [mealType, setMealType] = useState('Lunch');
+  const [logging, setLogging] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
+
+  const handleFoodSelect = (food) => {
+    setSelectedFood(food);
+    setMealType(food.meal_type);
+  };
+
+  const handleLogMeal = async () => {
+    if (!selectedFood) return;
+
+    setLogging(true);
+    try {
+      const dateStr = new Date().toISOString().split('T')[0];
+      await axios.post(`${API}/meals/log`, {
+        food_name: selectedFood.name,
+        dining_location: selectedFood.dining_location,
+        meal_type: mealType,
+        portion_size: portion,
+        calories: selectedFood.calories,
+        protein: selectedFood.protein,
+        carbs: selectedFood.carbs,
+        fat: selectedFood.fat,
+        date: dateStr
+      });
+
+      toast.success('Meal logged successfully!');
+      setIsOpen(false);
+      setSelectedFood(null);
+      setPortion(1);
+      setShowOptions(false);
+      // Trigger refresh of dashboard
+      window.dispatchEvent(new CustomEvent('mealLogged'));
+    } catch (error) {
+      toast.error('Failed to log meal');
+      console.error('Log meal error:', error);
+    } finally {
+      setLogging(false);
+    }
+  };
+
+  const calculateAdjustedNutrition = () => {
+    if (!selectedFood) return { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    return {
+      calories: Math.round(selectedFood.calories * portion),
+      protein: Math.round(selectedFood.protein * portion * 10) / 10,
+      carbs: Math.round(selectedFood.carbs * portion * 10) / 10,
+      fat: Math.round(selectedFood.fat * portion * 10) / 10
+    };
+  };
+
+  const handleOpenDialog = () => {
+    setIsOpen(true);
+    setShowOptions(true);
+    setSelectedFood(null);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button className="bg-umass-maroon hover:bg-red-800 text-white">
+          <Plus className="w-4 h-4 mr-2" />
+          Log Meal
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto !bg-white border border-gray-200 shadow-xl">
+        <DialogHeader>
+          <DialogTitle>Log a Meal</DialogTitle>
+          <DialogDescription>
+            Choose how you'd like to log your meal.
+          </DialogDescription>
+        </DialogHeader>
+
+        {showOptions ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col items-center justify-center space-y-2"
+                onClick={() => setShowOptions(false)}
+              >
+                <Search className="w-6 h-6" />
+                <span>Search Food</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col items-center justify-center space-y-2"
+                onClick={() => {
+                  setShowOptions(false);
+                  // Open favorites dialog
+                  const favoritesButton = document.querySelector('[data-favorites-trigger]');
+                  if (favoritesButton) {
+                    favoritesButton.click();
+                  }
+                  setIsOpen(false);
+                }}
+              >
+                <Heart className="w-6 h-6" />
+                <span>Favorites</span>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="h-20 flex flex-col items-center justify-center space-y-2"
+                onClick={() => {
+                  setShowOptions(false);
+                  // Open custom food dialog
+                  const customButton = document.querySelector('[data-custom-trigger]');
+                  if (customButton) {
+                    customButton.click();
+                  }
+                  setIsOpen(false);
+                }}
+              >
+                <Plus className="w-6 h-6" />
+                <span>Custom Food</span>
+              </Button>
+            </div>
+          </div>
+        ) : !selectedFood ? (
+          <div className="space-y-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowOptions(true)}
+              className="mb-4"
+            >
+              ← Back to Options
+            </Button>
+            <FoodSearch 
+              onFoodSelect={handleFoodSelect} 
+              onToggleFavorite={toggleFavorite}
+              isFavorite={isFavorite}
+            />
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setSelectedFood(null)}
+              className="mb-4"
+            >
+              ← Back to Search
+            </Button>
+            <Card className="p-4 bg-gray-50">
+              <h3 className="font-semibold text-lg">{selectedFood.name}</h3>
+              <p className="text-gray-600">{selectedFood.dining_location}</p>
+              <Badge variant="secondary" className="mt-2">{selectedFood.meal_type}</Badge>
+            </Card>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Portion Size</label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={portion}
+                  onChange={(e) => setPortion(parseFloat(e.target.value) || 1)}
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Meal Type</label>
+                <select
+                  value={mealType}
+                  onChange={(e) => setMealType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-umass-maroon"
+                >
+                  <option value="Breakfast">Breakfast</option>
+                  <option value="Lunch">Lunch</option>
+                  <option value="Dinner">Dinner</option>
+                  <option value="Snack">Snack</option>
+                </select>
+              </div>
+            </div>
+
+            <Card className="p-4 bg-umass-maroon/5 border-umass-maroon/20">
+              <h4 className="font-semibold mb-2">Adjusted Nutrition</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                <div>
+                  <div className="text-xl sm:text-2xl font-bold text-umass-maroon">{calculateAdjustedNutrition().calories}</div>
+                  <div className="text-sm text-gray-600">Calories</div>
+                </div>
+                <div>
+                  <div className="text-xl sm:text-2xl font-bold text-green-600">{calculateAdjustedNutrition().protein}g</div>
+                  <div className="text-sm text-gray-600">Protein</div>
+                </div>
+                <div>
+                  <div className="text-xl sm:text-2xl font-bold text-blue-600">{calculateAdjustedNutrition().carbs}g</div>
+                  <div className="text-sm text-gray-600">Carbs</div>
+                </div>
+                <div>
+                  <div className="text-xl sm:text-2xl font-bold text-yellow-600">{calculateAdjustedNutrition().fat}g</div>
+                  <div className="text-sm text-gray-600">Fat</div>
+                </div>
+              </div>
+            </Card>
+
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={() => setSelectedFood(null)} className="flex-1">
+                Back to Search
+              </Button>
+              <Button onClick={handleLogMeal} disabled={logging} className="flex-1 bg-umass-maroon hover:bg-red-800 text-white">
+                {logging ? 'Logging...' : 'Log Meal'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // Favorites Tab Component
 function FavoritesTab({ toggleFavorite, isFavorite }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -584,7 +804,7 @@ function FavoritesTab({ toggleFavorite, isFavorite }) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-umass-maroon hover:bg-red-800 text-white">
+        <Button className="bg-umass-maroon hover:bg-red-800 text-white" data-favorites-trigger>
           <Heart className="h-4 w-4 mr-2" />
           Favorites
         </Button>
@@ -616,7 +836,7 @@ function FavoritesTab({ toggleFavorite, isFavorite }) {
                     <div className="flex-1">
                       <h4 className="font-semibold text-lg">{favorite.name}</h4>
                       <p className="text-sm text-gray-600">{favorite.dining_location} • {favorite.meal_type}</p>
-                      <div className="grid grid-cols-4 gap-4 mt-3 text-center">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3 text-center">
                         <div>
                           <div className="text-lg font-semibold text-umass-maroon">{favorite.calories}</div>
                           <div className="text-xs text-gray-600">Cal</div>
@@ -635,7 +855,7 @@ function FavoritesTab({ toggleFavorite, isFavorite }) {
                         </div>
                       </div>
                     </div>
-                    <div className="flex space-x-2 ml-4">
+                    <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 ml-4">
                       <Button
                         variant="outline"
                         size="sm"
@@ -773,7 +993,7 @@ function CustomFoodLogger({ toggleFavorite, isFavorite }) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-umass-maroon hover:bg-red-800 text-white">
+        <Button className="bg-umass-maroon hover:bg-red-800 text-white" data-custom-trigger>
           <Plus className="w-4 h-4 mr-2" />
           Custom Food
         </Button>
@@ -798,7 +1018,7 @@ function CustomFoodLogger({ toggleFavorite, isFavorite }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Calories</label>
               <Input
@@ -823,44 +1043,44 @@ function CustomFoodLogger({ toggleFavorite, isFavorite }) {
             </div>
           </div>
 
-                      <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Protein (g)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  placeholder="0.0"
-                  value={customFood.protein}
-                  onChange={(e) => handleInputChange('protein', e.target.value)}
-                  className="w-full"
-                  min="0"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Carbs (g)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  placeholder="0.0"
-                  value={customFood.carbs}
-                  onChange={(e) => handleInputChange('carbs', e.target.value)}
-                  className="w-full"
-                  min="0"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Fat (g)</label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  placeholder="0.0"
-                  value={customFood.fat}
-                  onChange={(e) => handleInputChange('fat', e.target.value)}
-                  className="w-full"
-                  min="0"
-                />
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Protein (g)</label>
+              <Input
+                type="number"
+                step="0.1"
+                placeholder="0.0"
+                value={customFood.protein}
+                onChange={(e) => handleInputChange('protein', e.target.value)}
+                className="w-full"
+                min="0"
+              />
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Carbs (g)</label>
+              <Input
+                type="number"
+                step="0.1"
+                placeholder="0.0"
+                value={customFood.carbs}
+                onChange={(e) => handleInputChange('carbs', e.target.value)}
+                className="w-full"
+                min="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fat (g)</label>
+              <Input
+                type="number"
+                step="0.1"
+                placeholder="0.0"
+                value={customFood.fat}
+                onChange={(e) => handleInputChange('fat', e.target.value)}
+                className="w-full"
+                min="0"
+              />
+            </div>
+          </div>
 
                       <div className="space-y-2">
                 <label className="text-sm font-medium">Meal Type</label>
@@ -878,21 +1098,21 @@ function CustomFoodLogger({ toggleFavorite, isFavorite }) {
 
           <Card className="p-4 bg-umass-maroon/5 border-umass-maroon/20">
             <h4 className="font-semibold mb-2">Adjusted Nutrition</h4>
-            <div className="grid grid-cols-4 gap-4 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold text-umass-maroon">{calculateAdjustedNutrition().calories}</div>
+                <div className="text-xl sm:text-2xl font-bold text-umass-maroon">{calculateAdjustedNutrition().calories}</div>
                 <div className="text-sm text-gray-600">Calories</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-green-600">{calculateAdjustedNutrition().protein}g</div>
+                <div className="text-xl sm:text-2xl font-bold text-green-600">{calculateAdjustedNutrition().protein}g</div>
                 <div className="text-sm text-gray-600">Protein</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-blue-600">{calculateAdjustedNutrition().carbs}g</div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">{calculateAdjustedNutrition().carbs}g</div>
                 <div className="text-sm text-gray-600">Carbs</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-yellow-600">{calculateAdjustedNutrition().fat}g</div>
+                <div className="text-xl sm:text-2xl font-bold text-yellow-600">{calculateAdjustedNutrition().fat}g</div>
                 <div className="text-sm text-gray-600">Fat</div>
               </div>
             </div>
@@ -911,7 +1131,7 @@ function CustomFoodLogger({ toggleFavorite, isFavorite }) {
             </label>
           </div>
 
-          <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
             <Button variant="outline" onClick={resetForm} className="flex-1">
               Reset
             </Button>
@@ -1114,48 +1334,53 @@ function Dashboard() {
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                  <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-6">
-            <div className="flex items-center">
-              <Utensils className="h-8 w-8 text-umass-maroon mr-3" />
-              <h1 className="text-2xl font-bold text-umass-maroon">UMacro Tracker</h1>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center h-auto sm:h-16 py-4 sm:py-0">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-6 w-full sm:w-auto">
+              <div className="flex items-center">
+                <Utensils className="h-8 w-8 text-umass-maroon mr-3" />
+                <h1 className="text-xl sm:text-2xl font-bold text-umass-maroon">UMacro Tracker</h1>
+              </div>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={() => setShowGoalsDialog(true)}
-              className="text-sm"
-            >
-               Macro Goals
-            </Button>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 w-full sm:w-auto mt-4 sm:mt-0">
+              <span className="text-gray-700 text-sm sm:text-base">Welcome, {user?.username}!</span>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowGoalsDialog(true)}
+                className="text-sm w-full sm:w-auto"
+              >
+                 Macro Goals
+              </Button>
+              <Button variant="outline" onClick={logout} className="w-full sm:w-auto">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-gray-700">Welcome, {user?.username}!</span>
-            <Button variant="outline" onClick={logout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Date Navigation */}
-        <div className="flex items-center justify-between mb-8">
-          <Button variant="outline" onClick={() => navigateDate(-1)}>
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-8 space-y-4 sm:space-y-0">
+          <Button variant="outline" onClick={() => navigateDate(-1)} className="w-full sm:w-auto">
             ← Previous Day
           </Button>
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">{formatDate(currentDate)}</h2>
-            <p className="text-gray-600">{currentDate.toLocaleDateString()}</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">{formatDate(currentDate)}</h2>
+            <p className="text-gray-600 text-sm sm:text-base">{currentDate.toLocaleDateString()}</p>
           </div>
-          <Button variant="outline" onClick={() => navigateDate(1)}>
+          <Button 
+            variant="outline" 
+            onClick={() => navigateDate(1)}
+            disabled={currentDate.toLocaleDateString('en-CA') === new Date().toLocaleDateString('en-CA')}
+            className="w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             Next Day →
           </Button>
         </div>
 
         {/* Macro Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
           <Card className="bg-gradient-to-r from-umass-maroon to-red-800 text-white">
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -1253,16 +1478,14 @@ function Dashboard() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
           {/* Today's Meals */}
           <div className="lg:col-span-2">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Today's Meals ({macros.meal_count})</CardTitle>
-                <div className="flex space-x-2">
-                  <FavoritesTab toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
-                  <CustomFoodLogger toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
-                  <MealLogger toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
+                <CardTitle className="text-lg sm:text-xl">Today's Meals ({macros.meal_count})</CardTitle>
+                <div className="w-full sm:w-auto">
+                  <ConsolidatedMealLogger toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
                 </div>
               </CardHeader>
               <CardContent>
@@ -1277,50 +1500,52 @@ function Dashboard() {
                     {todayMeals
                       .sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at))
                       .map((meal, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                        <div className="flex-1">
-                          <h4 className="font-medium">{meal.food_name}</h4>
-                          <p className="text-sm text-gray-600">{meal.dining_location} • {meal.meal_type}</p>
+                      <div key={index} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-3 bg-gray-50 rounded-lg space-y-2 sm:space-y-0">
+                        <div className="flex-1 w-full sm:w-auto">
+                          <h4 className="font-medium text-sm sm:text-base">{meal.food_name}</h4>
+                          <p className="text-xs sm:text-sm text-gray-600">{meal.dining_location} • {meal.meal_type}</p>
                           <p className="text-xs text-gray-500">Portion: {meal.portion_size}x</p>
                         </div>
-                        <div className="text-right text-sm mr-4">
-                          <div className="font-semibold text-umass-maroon">{Math.round(meal.calories * meal.portion_size)} cal</div>
-                          <div className="text-gray-600">
-                            P: {Math.round(meal.protein * meal.portion_size * 10) / 10}g • 
-                            C: {Math.round(meal.carbs * meal.portion_size * 10) / 10}g • 
-                            F: {Math.round(meal.fat * meal.portion_size * 10) / 10}g
+                        <div className="flex justify-between items-center w-full sm:w-auto">
+                          <div className="text-left sm:text-right text-xs sm:text-sm">
+                            <div className="font-semibold text-umass-maroon">{Math.round(meal.calories * meal.portion_size)} cal</div>
+                            <div className="text-gray-600">
+                              P: {Math.round(meal.protein * meal.portion_size * 10) / 10}g • 
+                              C: {Math.round(meal.carbs * meal.portion_size * 10) / 10}g • 
+                              F: {Math.round(meal.fat * meal.portion_size * 10) / 10}g
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const foodData = {
-                                name: meal.food_name,
-                                dining_location: meal.dining_location,
-                                meal_type: meal.meal_type,
-                                calories: meal.calories,
-                                protein: meal.protein,
-                                carbs: meal.carbs,
-                                fat: meal.fat
-                              };
-                              toggleFavorite(foodData);
-                            }}
-                            className="p-1 h-8 w-8"
-                          >
-                            <Heart 
-                              className={`h-4 w-4 ${isFavorite(meal.food_name, meal.dining_location) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} 
-                            />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteMeal(meal.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center space-x-2 ml-4">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const foodData = {
+                                  name: meal.food_name,
+                                  dining_location: meal.dining_location,
+                                  meal_type: meal.meal_type,
+                                  calories: meal.calories,
+                                  protein: meal.protein,
+                                  carbs: meal.carbs,
+                                  fat: meal.fat
+                                };
+                                toggleFavorite(foodData);
+                              }}
+                              className="p-1 h-8 w-8"
+                            >
+                              <Heart 
+                                className={`h-4 w-4 ${isFavorite(meal.food_name, meal.dining_location) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} 
+                              />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteMeal(meal.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1334,7 +1559,7 @@ function Dashboard() {
           <div>
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center">
+                <CardTitle className="flex items-center text-lg sm:text-xl">
                   <CalendarIcon className="h-5 w-5 mr-2" />
                   14-Day History
                 </CardTitle>
@@ -1354,7 +1579,7 @@ function Dashboard() {
                           </div>
                           <div className="text-xs text-gray-500">{data.meal_count} meals</div>
                         </div>
-                        <div className="text-right text-sm">
+                        <div className="text-right text-xs sm:text-sm">
                           <div className="font-semibold text-umass-maroon">{data.total_calories} cal</div>
                           <div className="text-xs text-gray-600">
                             {data.total_protein}p • {data.total_carbs}c • {data.total_fat}f
@@ -1368,6 +1593,12 @@ function Dashboard() {
             </Card>
           </div>
         </div>
+      </div>
+
+      {/* Hidden components for consolidated meal logger */}
+      <div className="hidden">
+        <FavoritesTab toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
+        <CustomFoodLogger toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
       </div>
 
       {/* Macro Goals Dialog */}
@@ -1408,7 +1639,7 @@ function MacroGoalsForm({ currentGoals, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="text-sm font-medium">Calories</label>
           <Input
@@ -1450,7 +1681,7 @@ function MacroGoalsForm({ currentGoals, onSave, onCancel }) {
           />
         </div>
       </div>
-      <div className="flex space-x-2 pt-4">
+      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
           Cancel
         </Button>
