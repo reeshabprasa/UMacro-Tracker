@@ -391,7 +391,7 @@ function MealLogger({ toggleFavorite, isFavorite }) {
 
     setLogging(true);
     try {
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = new Date().toLocaleDateString('en-CA'); // Use local timezone
       await axios.post(`${API}/meals/log`, {
         food_name: selectedFood.name,
         dining_location: selectedFood.dining_location,
@@ -541,7 +541,8 @@ function ConsolidatedMealLogger({ toggleFavorite, isFavorite }) {
 
     setLogging(true);
     try {
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = new Date().toLocaleDateString('en-CA'); // Use local timezone
+      console.log('Logging meal with date:', dateStr, 'Current time:', new Date().toLocaleString());
       await axios.post(`${API}/meals/log`, {
         food_name: selectedFood.name,
         dining_location: selectedFood.dining_location,
@@ -779,6 +780,7 @@ function FavoritesTab({ toggleFavorite, isFavorite }) {
   const logFavorite = async (favorite) => {
     try {
       const dateStr = new Date().toLocaleDateString('en-CA');
+      console.log('Logging favorite with date:', dateStr, 'Current time:', new Date().toLocaleString());
       await axios.post(`${API}/meals/log`, {
         food_name: favorite.name,
         dining_location: favorite.dining_location,
@@ -916,7 +918,8 @@ function CustomFoodLogger({ toggleFavorite, isFavorite }) {
 
     setLogging(true);
     try {
-      const dateStr = new Date().toISOString().split('T')[0];
+      const dateStr = new Date().toLocaleDateString('en-CA'); // Use local timezone
+      console.log('Logging custom meal with date:', dateStr, 'Current time:', new Date().toLocaleString());
       await axios.post(`${API}/meals/log`, {
         food_name: customFood.name,
         dining_location: 'Custom Food',
@@ -1154,6 +1157,7 @@ function Dashboard() {
   const [history, setHistory] = useState({});
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [mealsCache, setMealsCache] = useState({}); // Cache for meals by date
   const [macroGoals, setMacroGoals] = useState(() => {
     const saved = localStorage.getItem('macroGoals');
     return saved ? JSON.parse(saved) : { calories: 2000, protein: 150, carbs: 250, fat: 65 };
@@ -1162,11 +1166,17 @@ function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-    fetchHistory();
     fetchFavorites();
 
     // Listen for meal logged events
     const handleMealLogged = () => {
+      // Clear cache for today's date to ensure fresh data
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      setMealsCache(prev => {
+        const newCache = { ...prev };
+        delete newCache[todayStr];
+        return newCache;
+      });
       fetchDashboardData();
       fetchHistory();
     };
@@ -1184,20 +1194,54 @@ function Dashboard() {
     };
   }, [currentDate]);
 
+  // Fetch history only once on component mount
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
   const fetchDashboardData = async () => {
     try {
       const dateStr = currentDate.toLocaleDateString('en-CA'); // Returns YYYY-MM-DD format in local timezone
       const [macrosResponse, mealsResponse] = await Promise.all([
         axios.get(`${API}/dashboard/macros/${dateStr}`),
-        currentDate.toLocaleDateString('en-CA') === new Date().toLocaleDateString('en-CA') ? axios.get(`${API}/meals/today`) : Promise.resolve({ data: [] })
+        getMealsForDate(dateStr)
       ]);
       
       setMacros(macrosResponse.data);
-      setTodayMeals(mealsResponse.data);
+      setTodayMeals(mealsResponse);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getMealsForDate = async (dateStr) => {
+    try {
+      // Check cache first
+      if (mealsCache[dateStr]) {
+        console.log('Using cached meals for date:', dateStr);
+        return mealsCache[dateStr];
+      }
+
+      // If it's today, use the today endpoint for real-time data
+      if (dateStr === new Date().toLocaleDateString('en-CA')) {
+        const response = await axios.get(`${API}/meals/today`);
+        const meals = response.data;
+        // Cache the meals
+        setMealsCache(prev => ({ ...prev, [dateStr]: meals }));
+        return meals;
+      } else {
+        // For previous days, fetch from backend
+        const response = await axios.get(`${API}/meals/date/${dateStr}`);
+        const meals = response.data || [];
+        // Cache the meals
+        setMealsCache(prev => ({ ...prev, [dateStr]: meals }));
+        return meals;
+      }
+    } catch (error) {
+      console.error('Failed to fetch meals for date:', dateStr, error);
+      return [];
     }
   };
 
@@ -1312,6 +1356,15 @@ function Dashboard() {
     try {
       await axios.delete(`${API}/meals/${mealId}`);
       toast.success('Meal deleted successfully');
+      
+      // Clear cache for current date to ensure fresh data
+      const currentDateStr = currentDate.toLocaleDateString('en-CA');
+      setMealsCache(prev => {
+        const newCache = { ...prev };
+        delete newCache[currentDateStr];
+        return newCache;
+      });
+      
       // Refresh dashboard data
       fetchDashboardData();
       fetchHistory();

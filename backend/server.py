@@ -356,6 +356,20 @@ async def get_today_meals(current_user: User = Depends(get_current_user)):
     
     return [MealLog(**meal) for meal in meals]
 
+@api_router.get("/meals/date/{date}", response_model=List[MealLog])
+async def get_meals_by_date(date: str, current_user: User = Depends(get_current_user)):
+    """Get meals for a specific date"""
+    meals = await db.meal_logs.find({"user_id": current_user.id, "date": date}).to_list(length=None)
+    
+    for meal in meals:
+        if isinstance(meal.get('logged_at'), str):
+            meal['logged_at'] = datetime.fromisoformat(meal['logged_at'])
+        # Ensure the ID is properly mapped from MongoDB _id
+        if '_id' in meal:
+            meal['id'] = str(meal['_id'])
+    
+    return [MealLog(**meal) for meal in meals]
+
 @api_router.delete("/meals/{meal_id}")
 async def delete_meal(meal_id: str, current_user: User = Depends(get_current_user)):
     # Find the meal and verify ownership
