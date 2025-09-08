@@ -374,7 +374,7 @@ function FoodSearch({ onFoodSelect, onToggleFavorite, isFavorite }) {
 }
 
 // Meal Logger Component
-function MealLogger({ toggleFavorite, isFavorite }) {
+function MealLogger({ toggleFavorite, isFavorite, selectedDate }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedFood, setSelectedFood] = useState(null);
   const [portion, setPortion] = useState(1);
@@ -391,7 +391,7 @@ function MealLogger({ toggleFavorite, isFavorite }) {
 
     setLogging(true);
     try {
-      const dateStr = new Date().toLocaleDateString('en-CA'); // Use local timezone
+      const dateStr = selectedDate.toLocaleDateString('en-CA'); // Use selected date
       await axios.post(`${API}/meals/log`, {
         food_name: selectedFood.name,
         dining_location: selectedFood.dining_location,
@@ -523,7 +523,7 @@ function MealLogger({ toggleFavorite, isFavorite }) {
 }
 
 // Consolidated Meal Logger Component
-function ConsolidatedMealLogger({ toggleFavorite, isFavorite }) {
+function ConsolidatedMealLogger({ toggleFavorite, isFavorite, selectedDate }) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedFood, setSelectedFood] = useState(null);
   const [portion, setPortion] = useState(1);
@@ -541,8 +541,8 @@ function ConsolidatedMealLogger({ toggleFavorite, isFavorite }) {
 
     setLogging(true);
     try {
-      const dateStr = new Date().toLocaleDateString('en-CA'); // Use local timezone
-      console.log('Logging meal with date:', dateStr, 'Current time:', new Date().toLocaleString());
+      const dateStr = selectedDate.toLocaleDateString('en-CA'); // Use selected date
+      console.log('Logging meal with date:', dateStr, 'Selected date:', selectedDate.toLocaleString());
       await axios.post(`${API}/meals/log`, {
         food_name: selectedFood.name,
         dining_location: selectedFood.dining_location,
@@ -742,7 +742,7 @@ function ConsolidatedMealLogger({ toggleFavorite, isFavorite }) {
 }
 
 // Favorites Tab Component
-function FavoritesTab({ toggleFavorite, isFavorite }) {
+function FavoritesTab({ toggleFavorite, isFavorite, selectedDate }) {
   const [isOpen, setIsOpen] = useState(false);
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -779,8 +779,8 @@ function FavoritesTab({ toggleFavorite, isFavorite }) {
 
   const logFavorite = async (favorite) => {
     try {
-      const dateStr = new Date().toLocaleDateString('en-CA');
-      console.log('Logging favorite with date:', dateStr, 'Current time:', new Date().toLocaleString());
+      const dateStr = selectedDate.toLocaleDateString('en-CA');
+      console.log('Logging favorite with date:', dateStr, 'Selected date:', selectedDate.toLocaleString());
       await axios.post(`${API}/meals/log`, {
         food_name: favorite.name,
         dining_location: favorite.dining_location,
@@ -888,7 +888,7 @@ function FavoritesTab({ toggleFavorite, isFavorite }) {
 }
 
 // Custom Food Logger Component
-function CustomFoodLogger({ toggleFavorite, isFavorite }) {
+function CustomFoodLogger({ toggleFavorite, isFavorite, selectedDate }) {
   const [isOpen, setIsOpen] = useState(false);
   const [customFood, setCustomFood] = useState({
     name: '',
@@ -898,7 +898,6 @@ function CustomFoodLogger({ toggleFavorite, isFavorite }) {
     fat: ''
   });
   const [portion, setPortion] = useState(1);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [mealType, setMealType] = useState('Lunch');
   const [logging, setLogging] = useState(false);
   const [saveAsFavorite, setSaveAsFavorite] = useState(false);
@@ -918,8 +917,8 @@ function CustomFoodLogger({ toggleFavorite, isFavorite }) {
 
     setLogging(true);
     try {
-      const dateStr = new Date().toLocaleDateString('en-CA'); // Use local timezone
-      console.log('Logging custom meal with date:', dateStr, 'Current time:', new Date().toLocaleString());
+      const dateStr = selectedDate.toLocaleDateString('en-CA'); // Use selected date
+      console.log('Logging custom meal with date:', dateStr, 'Selected date:', selectedDate.toLocaleString());
       await axios.post(`${API}/meals/log`, {
         food_name: customFood.name,
         dining_location: 'Custom Food',
@@ -1538,7 +1537,7 @@ function Dashboard() {
               <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
                 <CardTitle className="text-lg sm:text-xl">Today's Meals ({macros.meal_count})</CardTitle>
                 <div className="w-full sm:w-auto">
-                  <ConsolidatedMealLogger toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
+                  <ConsolidatedMealLogger toggleFavorite={toggleFavorite} isFavorite={isFavorite} selectedDate={currentDate} />
                 </div>
               </CardHeader>
               <CardContent>
@@ -1650,8 +1649,8 @@ function Dashboard() {
 
       {/* Hidden components for consolidated meal logger */}
       <div className="hidden">
-        <FavoritesTab toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
-        <CustomFoodLogger toggleFavorite={toggleFavorite} isFavorite={isFavorite} />
+        <FavoritesTab toggleFavorite={toggleFavorite} isFavorite={isFavorite} selectedDate={currentDate} />
+        <CustomFoodLogger toggleFavorite={toggleFavorite} isFavorite={isFavorite} selectedDate={currentDate} />
       </div>
 
       {/* Macro Goals Dialog */}
